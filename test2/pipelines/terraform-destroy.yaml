@@ -1,0 +1,47 @@
+name: 'Terraform Destroy VM - $(Date:yyMMdd)$(Rev:rr)'
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: Foundation02
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Destroy
+    displayName: 'Terraform Destroy Stage'
+    jobs:
+      - job: TerraformDestroy
+        displayName: 'Run Terraform Destroy'
+        steps:
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '1.10.0'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              terraformVersion: '1.10.0'
+              backendServiceArm: 'Datacomcloudtf'
+              backendAzureRmResourceGroupName: '$(bkstrrg)'
+              backendAzureRmStorageAccountName: '$(bkstorage)'
+              backendAzureRmContainerName: '$(bkstrcontainer)'
+              backendAzureRmKey: '$(bkstrkey)'
+              workingDirectory: 'iac'
+
+          - bash: |
+              terraform destroy -auto-approve -var-file="$(Build.SourcesDirectory)/iac/environments/examples/app1/_inputs.terraform.tfvars"
+            workingDirectory: 'iac'
+            displayName: 'Terraform Destroy'
+            env:
+              ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+              ARM_CLIENT_ID: $(arm-client-id)
+              ARM_CLIENT_SECRET: $(arm-client-secret)
+              ARM_TENANT_ID: $(arm-tenant-id)
+

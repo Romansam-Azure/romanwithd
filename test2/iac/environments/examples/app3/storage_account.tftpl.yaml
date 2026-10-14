@@ -1,0 +1,8 @@
+storage_account:
+  st0:
+    name: "st0"
+    resource_group: ${resource_group_name}
+    location: "${location}"
+    sku: "Standard_LRS"
+    kind: "StorageV2"
+    access_tier: "Hot"

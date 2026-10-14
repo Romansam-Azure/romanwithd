@@ -1,0 +1,37 @@
+trigger:
+- none
+
+variables:
+- group: Foundation04
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+# ✅ Install Terraform first
+- task: TerraformInstaller@1
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: '1.5.7'  # or whatever version you prefer
+
+# ✅ Then run the init command
+- task: TerraformTaskV4@4
+  displayName: init
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'Datacomcloudtf'
+    backendAzureRmResourceGroupName: '$(bkstrrg)'
+    backendAzureRmStorageAccountName: '$(bkstorage)'
+    backendAzureRmContainerName: '$(bkstrcontainer)'
+    backendAzureRmKey: '$(bkstrkey)'
+
+# ✅ Your destroy command
+- bash: |
+    terraform destroy -var-file="variables.tfvars" -auto-approve
+  displayName: Terraform Destroy
+  env:
+    ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+    ARM_CLIENT_ID:       $(arm-client-id)
+    ARM_CLIENT_SECRET:   $(arm-client-secret)
+    ARM_TENANT_ID:       $(arm-tenant-id)

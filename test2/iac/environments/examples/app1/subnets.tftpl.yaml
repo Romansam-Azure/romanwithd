@@ -1,0 +1,11 @@
+subnets:
+  snet01:
+    vnet:
+      key: "vnet01"
+    name: "snet-romtest-vm-dev-ae-01"
+    address_prefixes:
+    - "10.1.1.0/24"
+    network_security_group:
+      key: "nsg01"
+    route_table:
+      key: "default_route"

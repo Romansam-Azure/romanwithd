@@ -1,0 +1,70 @@
+name: 'Terraform Destroy VM - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: SitecoreUAT
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: Destroy
+  displayName: 'Terraform Destroy Stage'
+  jobs:
+    - job: TerraformDestroy
+      displayName: 'Run Terraform Destroy'
+      steps:
+
+        # Step 1: Install Terraform 1.6.6
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.6.6'
+
+        # Step 2: Add Terraform to PATH manually
+        - bash: |
+            echo "##vso[task.prependpath]/opt/hostedtoolcache/terraform/1.6.6/x64"
+            terraform -version
+          displayName: 'Ensure Terraform in PATH'
+
+        # Step 3: Terraform Init with Remote Backend
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.6.6'
+            backendServiceArm: 'Datacomcloudtf1'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            workingDirectory: '$(Build.SourcesDirectory)'
+            backendConfigReconfigure: true
+
+        # Step 4: Optional - List Terraform State (safe check)
+        - bash: |
+            echo "Checking Terraform State"
+            terraform state list || echo "No state found or cannot list"
+          workingDirectory: '$(Build.SourcesDirectory)'
+          displayName: 'Check Terraform State'
+          env:
+            ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+            ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+            ARM_TENANT_ID: $(ARM_TENANT_ID)
+            ARM_USE_OIDC: true
+
+        # Step 5: Terraform Destroy
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Destroy'
+          inputs:
+            provider: 'azurerm'
+            command: 'destroy'
+            terraformVersion: '1.6.6'
+            environmentServiceNameAzureRM: 'Datacomcloudtf1'
+            workingDirectory: '$(Build.SourcesDirectory)'
+            commandOptions: '-var-file="$(Build.SourcesDirectory)/environments/uat/terraform.tfvars" -auto-approve'

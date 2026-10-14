@@ -1,0 +1,52 @@
+name: Terraform-Apply-VM-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: avddeployvariables
+
+pool:
+  name: PC-EP-PFB-IaC-POOL
+
+stages:
+
+# ------------------- PLAN -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        # --- Install Terraform ---
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        # --- Terraform Init (required before unlock) ---
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Before Unlock)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'PC-EP-PFB-IaC-SC-PROD'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            backendConfigReconfigure: true
+            workingDirectory: '$(Build.SourcesDirectory)'
+
+        # --- Terraform State Unlock ---
+        - script: |
+            echo "Attempting Terraform state unlock..."
+            terraform force-unlock -force ae166005-dbc8-b317-cb69-2bee5ee0f02a
+            echo "State unlock completed."
+          displayName: 'Terraform State Unlock'
+          workingDirectory: '$(Build.SourcesDirectory)'
+          failOnStderr: false
+

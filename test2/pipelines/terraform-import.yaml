@@ -1,0 +1,47 @@
+name: 'Terraform Import - $(Date:yyMMdd)$(Rev:rr)'
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: Foundation02
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: TerraformImport
+    displayName: 'Import Existing Resources to Terraform'
+    steps:
+      - task: TerraformInstaller@1
+        displayName: 'Install Terraform'
+        inputs:
+          terraformVersion: '1.10.0'
+
+      - task: TerraformTaskV4@4
+        displayName: 'Terraform Init'
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          terraformVersion: '1.10.0'
+          backendServiceArm: 'Datacomcloudtf'
+          backendAzureRmResourceGroupName: '$(bkstrrg)'
+          backendAzureRmStorageAccountName: '$(bkstorage)'
+          backendAzureRmContainerName: '$(bkstrcontainer)'
+          backendAzureRmKey: '$(bkstrkey)'
+          workingDirectory: 'iac'
+
+      - bash: |
+          echo "Import Key Vault Secret for vmset1_1"
+          terraform import 'module.vm_windows["vmset1_1"].azurerm_key_vault_secret.admin_password[0]' '/subscriptions/dca9be48-88b1-43e3-adfb-4a8d1ac1220e/resourceGroups/rg-app1-pom-aue-001/providers/Microsoft.KeyVault/vaults/kv-app1-rom-aue-001/secrets/admin-password'
+
+          echo "Import Key Vault Secret for vmset1_2"
+          terraform import 'module.vm_windows["vmset1_2"].azurerm_key_vault_secret.admin_password[0]' '/subscriptions/dca9be48-88b1-43e3-adfb-4a8d1ac1220e/resourceGroups/rg-app1-pom-aue-001/providers/Microsoft.KeyVault/vaults/kv-app1-rom-aue-001/secrets/admin-password'
+        workingDirectory: 'iac'
+        displayName: 'Run Terraform Import'
+        env:
+          ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+          ARM_CLIENT_ID: $(arm-client-id)
+          ARM_CLIENT_SECRET: $(arm-client-secret)
+          ARM_TENANT_ID: $(arm-tenant-id)

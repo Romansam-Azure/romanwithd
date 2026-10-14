@@ -1,0 +1,179 @@
+name: 'Terraform Apply - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger:
+- none
+
+pr:
+- '*'
+
+variables:
+- group: avddeployvariables
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: ValidatePlan
+  displayName: Validate the Terraform Plan
+  jobs:
+    - job: TerraformPlan
+      displayName: Run Terraform Plan
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.5.7'
+
+        - task: AzurePowerShell@5
+          name: AddAgentIP
+          displayName: 'Add Agent IP to Storage Firewall'
+          inputs:
+            azureSubscription: 'Testconnection'
+            ScriptType: 'InlineScript'
+            Inline: |
+              $ip = (Invoke-RestMethod -Uri "http://ipinfo.io/json").ip
+              Write-Host "##vso[task.setvariable variable=agentIP]$ip"
+              Add-AzStorageAccountNetworkRule `
+                -ResourceGroupName "$(bkstrrg)" `
+                -AccountName "$(bkstorage)" `
+                -IPAddressOrRange $ip
+              # Force-refresh context to enforce rule
+              $key = (Get-AzStorageAccountKey -ResourceGroupName "$(bkstrrg)" -Name "$(bkstorage)")[0].Value
+              $ctx = New-AzStorageContext -StorageAccountName "$(bkstorage)" -StorageAccountKey $key
+              Get-AzStorageContainer -Context $ctx | Out-Null
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - task: AzurePowerShell@5
+          name: AddAgentIPToKV
+          displayName: 'Add Agent IP to Key Vault Firewall'
+          inputs:
+            azureSubscription: 'Testconnection'
+            ScriptType: 'InlineScript'
+            Inline: |
+              $ip = (Invoke-RestMethod -Uri "http://ipinfo.io/json").ip
+              Write-Host "##vso[task.setvariable variable=agentIP]$ip"
+              Add-AzKeyVaultNetworkRule -VaultName "kv-tfstate-p01-ae" -IPAddressRange $ip
+              Start-Sleep -Seconds 30
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - bash: |
+            echo "Waiting 90 seconds for firewall rules to take effect..."
+            sleep 90
+          displayName: 'Wait for firewall rule propagation'
+
+        - task: TerraformTaskV4@4
+          displayName: Terraform Init
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'Testconnection'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+
+        - bash: |
+            terraform plan -var-file="variables.tfvars" -out=$(Build.ArtifactStagingDirectory)/tfplan
+          displayName: Terraform Plan
+          env:
+            ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+            ARM_CLIENT_ID: $(arm-client-id)
+            ARM_CLIENT_SECRET: $(arm-client-secret)
+            ARM_TENANT_ID: $(arm-tenant-id)
+
+        - task: CopyFiles@2
+          inputs:
+            SourceFolder: '$(Build.Repository.LocalPath)'
+            Contents: |
+              **/*
+              !.git/**/*
+              !.terraform/**/*
+              !.gitignore
+              !.terraform.lock.hcl
+              !README.md
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'drop'
+            publishLocation: 'Container'
+
+- stage: DeployToTest
+  displayName: Deploy to Test
+  dependsOn:
+    - ValidatePlan
+  jobs:
+    - deployment: ApplyToTest
+      displayName: Apply Terraform to Test
+      environment: alztest
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: AzurePowerShell@5
+                name: AddAgentIP
+                displayName: 'Add Agent IP to Storage Firewall'
+                inputs:
+                  azureSubscription: 'Testconnection'
+                  ScriptType: 'InlineScript'
+                  Inline: |
+                    $ip = (Invoke-RestMethod -Uri "http://ipinfo.io/json").ip
+                    Write-Host "##vso[task.setvariable variable=agentIP]$ip"
+                    Add-AzStorageAccountNetworkRule `
+                      -ResourceGroupName "$(bkstrrg)" `
+                      -AccountName "$(bkstorage)" `
+                      -IPAddressOrRange $ip
+                    $key = (Get-AzStorageAccountKey -ResourceGroupName "$(bkstrrg)" -Name "$(bkstorage)")[0].Value
+                    $ctx = New-AzStorageContext -StorageAccountName "$(bkstorage)" -StorageAccountKey $key
+                    Get-AzStorageContainer -Context $ctx | Out-Null
+                azurePowerShellVersion: 'LatestVersion'
+                pwsh: true
+
+              - task: AzurePowerShell@5
+                name: AddAgentIPToKV
+                displayName: 'Add Agent IP to Key Vault Firewall'
+                inputs:
+                  azureSubscription: 'Testconnection'
+                  ScriptType: 'InlineScript'
+                  Inline: |
+                    $ip = (Invoke-RestMethod -Uri "http://ipinfo.io/json").ip
+                    Write-Host "##vso[task.setvariable variable=agentIP]$ip"
+                    Add-AzKeyVaultNetworkRule -VaultName "kv-tfstate-p01-ae" -IPAddressRange $ip
+                    Start-Sleep -Seconds 30
+                azurePowerShellVersion: 'LatestVersion'
+                pwsh: true
+
+              - bash: |
+                  echo "Waiting 90 seconds for firewall rules to take effect..."
+                  sleep 90
+                displayName: 'Wait for firewall rule propagation'
+
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.5.7'
+
+              - task: TerraformTaskV4@4
+                displayName: Terraform Init
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  backendServiceArm: 'Testconnection'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  workingDirectory: '$(Pipeline.Workspace)/drop'
+
+              - bash: |
+                  cd $(Pipeline.Workspace)/drop
+                  terraform apply -auto-approve tfplan
+                displayName: Terraform Apply
+                env:
+                  ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+                  ARM_CLIENT_ID: $(arm-client-id)
+                  ARM_CLIENT_SECRET: $(arm-client-secret)
+                  ARM_TENANT_ID: $(arm-tenant-id)

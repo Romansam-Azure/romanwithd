@@ -1,0 +1,102 @@
+name: 'Terraform Apply - $(Date:yyMMdd)$(Rev:rr)'
+trigger:
+- none
+
+pr:
+  - '*'
+
+variables:
+- group: avddeployvariables
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: ValidatePlan
+    displayName: Validate the Terraform Plan
+    jobs:
+      - job: TerraformPlan
+        displayName: Run Terraform Plan      
+        steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.5.7'  # or whatever version you prefer
+
+        - task: TerraformTaskV4@4
+          displayName: init
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'Testconnection'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+
+        - bash:
+            terraform plan -var-file="variables.tfvars" -out=$(Build.ArtifactStagingDirectory)/tfplan
+          displayName: Terraform Plan
+          env:
+            ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+            ARM_CLIENT_ID: $(arm-client-id)
+            ARM_CLIENT_SECRET: $(arm-client-secret)
+            ARM_TENANT_ID: $(arm-tenant-id)
+
+        - task: CopyFiles@2
+          inputs:
+            SourceFolder: '$(Build.Repository.LocalPath)'
+            Contents: |
+              **/*
+              !.git/**/*
+              !.terraform/**/*
+              !.gitignore
+              !.terraform.lock.hcl
+              !README.md
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'drop'
+            publishLocation: 'Container'
+
+  - stage: DeployToTest
+    displayName: Deploy to Test
+    dependsOn:
+      - ValidatePlan
+    jobs:
+      - deployment: ApplyToTest
+        displayName: Apply Terraform to Test
+        environment: alztest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.5.7'  # or whatever version you prefer
+
+              - task: TerraformTaskV4@4
+                displayName: init
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  backendServiceArm: 'Testconnection'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  workingDirectory: '$(Pipeline.Workspace)/drop'
+
+              - bash: |
+                  cd $(Pipeline.Workspace)/drop
+                  pwd
+                  terraform apply -auto-approve tfplan
+                displayName: Terraform Apply
+                env:
+                  ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+                  ARM_CLIENT_ID: $(arm-client-id)
+                  ARM_CLIENT_SECRET: $(arm-client-secret)
+                  ARM_TENANT_ID: $(arm-tenant-id)

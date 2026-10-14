@@ -1,0 +1,130 @@
+name: 'Terraform Apply VM - $(Date:yyMMdd)$(Rev:rr)'
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: Foundation02
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+# ----------- PLAN STAGE -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'Datacomcloudtf'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            workingDirectory: 'iac'
+
+        # - bash: |
+        #   ./terraform_import_ipgroups.sh
+        #   workingDirectory: 'iac'
+        #   displayName: 'Run IP Group Import Script'
+        #   env:
+        #     ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+        #     ARM_CLIENT_ID: $(arm-client-id)
+        #     ARM_CLIENT_SECRET: $(arm-client-secret)
+        #     ARM_TENANT_ID: $(arm-tenant-id)
+
+        - bash: |
+            terraform plan -var-file="$(Build.SourcesDirectory)/iac/environments/examples/app1/_inputs.terraform.tfvars" -out="$(Build.ArtifactStagingDirectory)/tfplan"
+          workingDirectory: 'iac'
+          displayName: 'Terraform Plan'
+          env:
+            ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+            ARM_CLIENT_ID: $(arm-client-id)
+            ARM_CLIENT_SECRET: $(arm-client-secret)
+            ARM_TENANT_ID: $(arm-tenant-id)
+
+        - task: CopyFiles@2
+          displayName: 'Copy Infra Files'
+          inputs:
+            SourceFolder: '$(Build.Repository.LocalPath)'
+            Contents: |
+              iac/**/*
+              !**/.terraform/**/*
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Terraform Plan'
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'terraform-plan'
+            publishLocation: 'Container'
+
+# ----------- MANUAL APPROVAL STAGE -------------------
+- stage: ManualApproval
+  displayName: 'Manual Approval Before Apply'
+  dependsOn: Plan
+  jobs:
+    - deployment: WaitForApproval
+      displayName: 'Awaiting Manual Approval'
+      environment: approval-env  # This must exist and be configured for approvals
+      strategy:
+        runOnce:
+          deploy:
+            steps: []  # No tasks or commands
+
+
+# ----------- APPLY STAGE -------------------
+- stage: DeployToTest
+  displayName: 'Terraform Apply Stage'
+  dependsOn: ManualApproval
+  jobs:
+    - deployment: ApplyToTest
+      displayName: Apply Terraform to Test
+      environment: alztest
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.10.0'
+
+              - download: current
+                artifact: terraform-plan
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Init'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  terraformVersion: '1.10.0'
+                  backendServiceArm: 'Datacomcloudtf'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  workingDirectory: '$(Pipeline.Workspace)/terraform-plan/iac'
+
+              - bash: |
+                  terraform apply -auto-approve "$(Pipeline.Workspace)/terraform-plan/tfplan"
+                workingDirectory: '$(Pipeline.Workspace)/terraform-plan/iac'
+                displayName: 'Terraform Apply'
+                env:
+                  ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+                  ARM_CLIENT_ID: $(arm-client-id)
+                  ARM_CLIENT_SECRET: $(arm-client-secret)
+                  ARM_TENANT_ID: $(arm-tenant-id)

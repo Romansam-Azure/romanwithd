@@ -1,0 +1,43 @@
+name: Sitecore 10.4 Application Deployment
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr: none
+
+variables:
+  - name: ResourceGroupName
+    value: SitecoreUAT104
+  - name: KeyVaultName
+    value: sitecoreuat104keyvault
+  - name: ConfigFilePath
+    value: config/deployment-config.json
+  - name: AzureSubscription
+    value: '<Azure-Service-Connection-Name>' # Replace with your Azure service connection name
+  - group: Sitecore-Deployment-Secrets # Variable group for sensitive data
+
+pool:
+  vmImage: windows-latest
+
+steps:
+  - task: AzurePowerShell@5
+    displayName: 'Login to Azure'
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      ScriptType: 'InlineScript'
+      azurePowerShellVersion: 'LatestVersion'
+      inline: |
+        Write-Host "Logging in to Azure..."
+        az login --service-principal -u $env:AZURE_CLIENT_ID -p $env:AZURE_CLIENT_SECRET --tenant $env:AZURE_TENANT_ID
+
+  - task: AzurePowerShell@5
+    displayName: 'Deploy Sitecore WDPs'
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      ScriptType: 'FilePath'
+      ScriptPath: 'scripts/deploy-wdp.ps1'
+      ScriptArguments: '-ResourceGroupName $(ResourceGroupName) -ConfigFilePath $(ConfigFilePath) -KeyVaultName $(KeyVaultName)'
+      azurePowerShellVersion: 'LatestVersion'
+      pwsh: true

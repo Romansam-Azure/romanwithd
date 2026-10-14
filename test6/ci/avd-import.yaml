@@ -1,0 +1,100 @@
+name: 'Terraform Apply VM - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: avddeployvariables
+
+pool:
+  name: PC-EP-PFB-IaC-POOL
+
+stages:
+
+# ----------- PLAN STAGE -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.5.7'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'PC-EP-PFB-IaC-SC-PROD'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            backendConfigReconfigure: true
+
+        - script: |
+            terraform state list
+          displayName: 'List Terraform State Resources'
+
+        - task: AzureCLI@2
+          displayName: 'Terraform Remove Resources from State'
+          inputs:
+            azureSubscription: 'PC-EP-PFB-IaC-SC-PROD'
+            scriptType: 'ps'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              Write-Host "Exporting OIDC Environment Variables"
+              $env:ARM_USE_OIDC = "true"
+              az account set --subscription $env:ARM_SUBSCRIPTION_ID
+              az account show
+
+              terraform init -upgrade
+
+              # Remove resources from the state
+              terraform import -var-file="variables.tfvars" 'module.avd_p01_ae.azurerm_virtual_machine_extension.entra_join[5]' /subscriptions/ee3f4544-7b5f-44f7-af75-2a4ca66cfeec/resourceGroups/rg-avd-p01-ae/providers/Microsoft.Compute/virtualMachines/avdp-aep1-6/extensions/EntraJoinScript
+
+              # Add more terraform state rm commands as needed
+
+          env:
+            ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+            ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+            ARM_TENANT_ID: $(ARM_TENANT_ID)
+            ARM_USE_OIDC: true
+
+        # - task: AzureCLI@2
+        #   displayName: 'Terraform Import Resources (PowerShell)'
+        #   inputs:
+        #     azureSubscription: 'PC-EP-PFB-IaC-PRD-AVD'
+        #     scriptType: 'ps'
+        #     scriptLocation: 'inlineScript'
+        #     inlineScript: |
+        #       Write-Host "Exporting OIDC Environment Variables"
+        #       $env:ARM_USE_OIDC = "true"
+        #       az account set --subscription $env:ARM_SUBSCRIPTION_ID
+        #       az account show
+
+        #       terraform init
+
+        #       Get-Content "resource-import.txt" | ForEach-Object {
+        #         $parts = $_ -split "\s+"
+        #         $resource = $parts[0]
+        #         $id = $parts[1]
+        #         Write-Host "Importing $resource from $id"
+        #         terraform import -var-file=""variables.tfvars"" $resource $id
+        #       }
+        #   env:
+        #     ARM_CLIENT_ID: $(arm-client-id)
+        #     ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+        #     ARM_TENANT_ID: $(arm-tenant-id)
+        #     ARM_CLIENT_SECRET: $(arm-client-secret)   # optional if not using OIDC
+        #     ARM_USE_OIDC: true
+
+        # - powershell: |
+        #     Write-Host "Checking Terraform State"
+        #     terraform state list
+        #   displayName: 'Check Terraform State'

@@ -1,0 +1,151 @@
+name: Terraform-Apply-VM-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: avddeployvariables
+
+pool:
+  name: PC-EP-PFB-IaC-POOL
+
+stages:
+
+# ------------------- PLAN -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+
+        # --- Force clean workspace ---
+        - powershell: |
+            Write-Host "Cleaning old agent workspace..."
+            Remove-Item -Path "$(Agent.BuildDirectory)\s" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "Workspace cleaned successfully."
+          displayName: "Force clean agent workspace"
+
+        # --- Fresh checkout ---
+        - checkout: self
+          clean: true
+          persistCredentials: true
+          submodules: true
+
+        # --- Install Terraform ---
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        # --- Terraform Init ---
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'PC-EP-PFB-IaC-SC-PROD'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            backendConfigReconfigure: true
+            workingDirectory: '$(Build.SourcesDirectory)'
+
+        # --- List Terraform state resources ---
+        - script: terraform state list
+          displayName: 'List Terraform State Resources'
+          workingDirectory: '$(Build.SourcesDirectory)'
+
+        # --- Terraform Plan ---
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            terraformVersion: '1.10.0'
+            environmentServiceNameAzureRM: 'PC-EP-PFB-IaC-SC-PROD'
+            commandOptions: '-out=tfplan -var-file="variables.tfvars" -target=module.avd_p01_ae'
+            workingDirectory: '$(Build.SourcesDirectory)'
+
+        # --- Publish plan artifacts ---
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish Terraform Files'
+          inputs:
+            targetPath: '$(Build.SourcesDirectory)'
+            artifact: 'avd-files'
+
+
+# ------------------- APPROVAL -------------------
+- stage: ManualApproval
+  displayName: 'Manual Approval Before Apply'
+  dependsOn: Plan
+  jobs:
+    - deployment: WaitForApproval
+      displayName: 'Awaiting Manual Approval'
+      environment: avd-env
+      strategy:
+        runOnce:
+          deploy:
+            steps: []
+
+
+# ------------------- APPLY -------------------
+- stage: DeployToTest
+  displayName: 'Terraform Apply Stage'
+  dependsOn: ManualApproval
+  jobs:
+    - deployment: ApplyToTest
+      displayName: 'Apply Terraform to Test'
+      environment: alztest
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              # --- Clean checkout again ---
+              - checkout: self
+                clean: true
+                persistCredentials: true
+                submodules: true
+
+              # --- Install Terraform ---
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.10.0'
+
+              # --- Download artifacts ---
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download Terraform Files'
+                inputs:
+                  artifact: 'avd-files'
+                  path: '$(Pipeline.Workspace)/avd-files'
+
+              # --- Terraform Init (Apply) ---
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Init (Apply Stage)'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  terraformVersion: '1.10.0'
+                  backendServiceArm: 'PC-EP-PFB-IaC-SC-PROD'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  backendConfigReconfigure: true
+                  workingDirectory: '$(Pipeline.Workspace)/avd-files'
+
+              # --- Terraform Apply ---
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  terraformVersion: '1.10.0'
+                  environmentServiceNameAzureRM: 'PC-EP-PFB-IaC-SC-PROD'
+                  commandOptions: '-auto-approve -var-file="variables.tfvars" -target=module.avd_p01_ae'
+                  workingDirectory: '$(Pipeline.Workspace)/avd-files'

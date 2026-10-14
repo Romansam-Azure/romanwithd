@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "deploymentId": {
+      "value": "sitecorexp104-uat"
+    },
+    "sitecoreSKU": {
+      "value": "Extra Small"
+    },
+    "licenseXml": {
+      "value": ""
+    },
+    "cmMsDeployPackageUrl": {
+      "value": ""
+    },
+    "cdMsDeployPackageUrl": {
+      "value": ""
+    },
+    "cdStagingMsDeployPackageUrl": {
+      "value": ""
+    },
+    "prcMsDeployPackageUrl": {
+      "value": ""
+    },
+    "siMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1collectionMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1collectionsearchMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1cortexprocessingMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1cortexreportingMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1marketingautomationMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1marketingautomationreportingMsDeployPackageUrl": {
+      "value": ""
+    },
+    "xp1referencedataMsDeployPackageUrl": {
+      "value": ""
+    },
+    "sxaMsDeployPackageUrl": {
+      "value": ""
+    },
+    "sxaCdMsDeployPackageUrl": {
+      "value": ""
+    },
+    "exmMsDeployPackageUrl": {
+      "value": ""
+    },
+    "powershellMsDeployPackageUrl": {
+      "value": ""
+    }
+  }
+}

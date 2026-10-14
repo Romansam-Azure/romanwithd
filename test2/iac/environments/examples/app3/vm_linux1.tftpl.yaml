@@ -1,0 +1,35 @@
+virtual_machines:
+  vmlin01:
+    name: "vm-app1-l01"
+
+    resource_group_name: ${resource_group_name}
+    location: ${location}
+
+    subnet:
+      key: "snet01"
+
+    private_ip_address: "10.10.128.133"    
+
+    os_type: "Linux"
+    
+    admin_username: myadmin
+
+    sku_size: "Standard_B2als_v2"
+
+    os_disk:
+      storage_account_type: "StandardSSD_LRS"
+      caching: "ReadWrite"
+
+    source_image_reference:
+      publisher: "canonical"
+      offer: "0001-com-ubuntu-server-jammy"
+      sku: "22_04-lts-gen2"
+      version: "latest"
+
+    key_vault:
+      key: "kv01"
+
+    tags:
+      AutoStartStopEnable: true,
+      AutoStartStopConfig: "{ IgnoreWeekends: 'false', StartHour: '08', StopHour: '10' }"
+      backup: "Start2amRetain28Days"

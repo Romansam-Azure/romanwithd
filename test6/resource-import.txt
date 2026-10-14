@@ -1,0 +1,1 @@
+'module.shdappase.azurerm_role_assignment.desktop_virtualization_user' '/subscriptions/ee3f4544-7b5f-44f7-af75-2a4ca66cfeec/resourceGroups/rg-avd-p04-ase/providers/Microsoft.DesktopVirtualization/applicationgroups/vrag-vdpool-shared-app-p04-ase/providers/Microsoft.Authorization/roleAssignments/79944977-b248-4482-b47e-c1596733d01f'

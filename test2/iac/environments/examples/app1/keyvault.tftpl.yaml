@@ -1,0 +1,11 @@
+key_vaults:
+  kv01:
+    name: "kv-app1-com-aue-001"
+    resource_group_name: ${resource_group_name}
+    sku: "standard"
+    enabled_for_deployment: true
+    enabled_for_disk_encryption: true
+    tags:
+      environment: "dev"
+      project: "stutest"
+      owner: "ae"

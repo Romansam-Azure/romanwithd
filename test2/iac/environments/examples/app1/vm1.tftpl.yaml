@@ -1,0 +1,59 @@
+virtual_machines:
+  vmset1:
+    vm_name_pattern: "WINVM%02d"
+    vm_count_start: 1
+    vm_count: 2
+
+    resource_group_name: ${resource_group_name}
+    location: ${location}
+    zone: "1"
+
+    virtual_network: vnet01
+    subnet:
+      key: "snet01"
+
+    ip_format: "10.10.128.%d"
+    ip_start: 150
+
+    os_type: "Windows"
+    sku_size: "Standard_DS2_v2"
+
+    source_image_reference:
+      publisher: "MicrosoftWindowsServer"
+      offer: "WindowsServer"
+      sku: "2022-Datacenter-g2"
+      version: "latest"
+
+    account_credentials:
+      key_vault_configuration:
+        key_vault:
+          key: "kv01"
+        secret_configuration:
+          name: "admin-password"
+      password_authentication_disabled: false
+
+    # domain_join:
+    #   ou_path: "OU=Workstations,DC=corp,DC=contoso,DC=com"
+    #   domain_name: "corp.contoso.com"
+    #   domain_user: "domainjoinuser"
+    #   domain_password_secret:
+    #     key_vault:
+    #       key: "kv01"
+    #     secret_configuration:
+    #       name: "domainjoin-password"
+
+    network_interfaces:
+      nic1:
+        ip_configurations:
+          ipconfig1:
+            subnet:
+              key: "snet01"
+
+    os_disk:
+      caching: "ReadWrite"
+      storage_account_type: "Premium_LRS"
+
+    tags:
+      AutoStartStopEnable: true
+      AutoStartStopConfig: "{ IgnoreWeekends: 'false', StartHour: '08', StopHour: '18' }"
+      backup: "Start2amRetain28Days"

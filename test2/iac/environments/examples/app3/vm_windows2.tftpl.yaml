@@ -1,0 +1,44 @@
+virtual_machines:
+  vm02:
+    name: "vm-app1-w02"
+
+    resource_group_name: ${resource_group_name}
+    location: australiaeast
+
+    vnet:
+      key: "vnet01"
+    subnet:
+      key: "snet01"
+    private_ip_address: "10.10.128.134"
+
+    os_type: "Windows"
+
+    admin_username: myadmin
+
+    sku_size: "Standard_B2als_v2"
+
+    os_disk:
+      storage_account_type: "StandardSSD_LRS"
+      caching: "ReadWrite"
+
+    data_disk_managed_disks:
+      disk1:
+        name_suffix: "datadisk-01"
+        storage_account_type: "StandardSSD_LRS"
+        lun: 0
+        caching: "ReadWrite"
+        disk_size_gb: 32
+        
+    source_image_reference:
+      publisher: "MicrosoftWindowsServer"
+      offer: "WindowsServer"
+      sku: "2025-datacenter-g2"
+      version: "latest"
+
+    key_vault:
+      key: "kv01"
+
+    tags:
+      AutoStartStopEnable: true,
+      AutoStartStopConfig: "{ IgnoreWeekends: 'false', StartHour: '08', StopHour: '10' }"
+      backup: "Start2amRetain28Days"

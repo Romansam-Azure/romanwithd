@@ -1,0 +1,49 @@
+name: 'Terraform Unlock - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: SitecoreUAT
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: Unlock
+  displayName: 'Terraform Unlock Stage'
+  jobs:
+    - job: TerraformUnlock
+      displayName: 'Force Unlock Terraform State'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'Datacomcloudtf1'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            workingDirectory: '$(Build.SourcesDirectory)'
+            backendConfigReconfigure: true
+
+        - script: |
+            echo "🔓 Unlocking Terraform state with ID: $(lockId)"
+            terraform force-unlock -force f10ba060-0fd4-abb9-c161-95f55d76740b
+          workingDirectory: '$(Build.SourcesDirectory)'
+          displayName: 'Force Unlock Terraform State'
+          env:
+            ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+            ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+            ARM_TENANT_ID: $(ARM_TENANT_ID)
+            ARM_USE_OIDC: true

@@ -1,0 +1,13 @@
+cm=Sitecore 10.4.0 rev. 010422 (Cloud)_cm.scwdp.zip
+cd=Sitecore 10.4.0 rev. 010422 (Cloud)_cd.scwdp.zip
+prc=Sitecore 10.4.0 rev. 010422 (Cloud)_prc.scwdp.zip
+si=Sitecore.IdentityServer.8.0.16.scwdp.zip
+xc-refdata=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1referencedata.scwdp.zip
+xc-collect=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collection.scwdp.zip
+xc-search=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collectionsearch.scwdp.zip
+ma-ops=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomation.scwdp.zip
+ma-rep=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomationreporting.scwdp.zip
+cortex-processing=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexprocessing.scwdp.zip
+cortex-reporting=Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexreporting.scwdp.zip
+sxa=Sitecore Experience Accelerator 10.4.0 rev. 08675.scwdp.zip
+exm=Sitecore.Patch.EXM 10.4.0 rev. 010422 (Cloud)_cm.scwdp.zip

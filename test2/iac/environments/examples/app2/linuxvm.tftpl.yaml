@@ -1,0 +1,34 @@
+virtual_machines:
+  vmset1:
+    vm_name_pattern: "STUTEST%02dDAZ"
+    vm_count_start: 02
+    vm_count: 2
+
+    resource_group_name: rg-stutest-vm-dev-ae-01
+    location: australiaeast
+
+    virtual_network: vnet-stutest-dev-ae-01
+    subnet: snet-stutest-vm-dev-ae-01
+    ip_format: "10.10.128.%d"
+    ip_start: 133
+
+    os_type: "Linux"
+    
+    admin_username: myadmin
+
+    sku_size: "Standard_B2als_v2"
+
+    os_disk:
+      storage_account_type: "StandardSSD_LRS"
+      caching: "ReadWrite"
+
+    source_image_reference:
+      publisher: "canonical"
+      offer: "0001-com-ubuntu-server-jammy"
+      sku: "22_04-lts-gen2"
+      version: "latest"
+
+    tags:
+      AutoStartStopEnable: true,
+      AutoStartStopConfig: "{ IgnoreWeekends: 'false', StartHour: '08', StopHour: '10' }"
+      backup: "Start2amRetain28Days"

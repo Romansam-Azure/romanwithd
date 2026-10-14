@@ -1,0 +1,39 @@
+os_type: "Linux"
+
+resource_group_name: rg-stutest-vm-dev-ae-01
+location: australiaeast
+
+virtual_network: vnet-stutest-dev-ae-01
+subnet: snet-stutest-vm-dev-ae-01
+
+admin_username: myadmin
+
+sku_size: "Standard_B2als_v2"
+
+vms:
+  vm01:
+    name: "STUTEST04DAZ"
+    private_ip_address: "10.10.128.135"
+
+os_disk:
+  storage_account_type: "StandardSSD_LRS"
+  caching: "ReadWrite"
+
+source_image_reference:
+  publisher: "canonical"
+  offer: "0001-com-ubuntu-server-jammy"
+  sku: "22_04-lts-gen2"
+  version: "latest"
+
+data_disk_managed_disks:
+  disk1:
+    name_suffix: "datadisk-01"
+    storage_account_type: "StandardSSD_LRS"
+    lun: 0
+    caching: "ReadWrite"
+    disk_size_gb: 32
+
+tags:
+  AutoStartStopEnable: true,
+  AutoStartStopConfig: "{ IgnoreWeekends: 'false', StartHour: '08', StopHour: '10' }"
+  backup: "Start2amRetain28Days"

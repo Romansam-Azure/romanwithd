@@ -1,0 +1,4 @@
+environment_name = "dev"
+location         = "eastus2"
+skip_vnet        = false
+# administrator_login_password = "your-secure-password"   # optional – will be auto-generated

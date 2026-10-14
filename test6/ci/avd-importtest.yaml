@@ -1,0 +1,57 @@
+name: 'Terraform Apply VM - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: avddeployvariables
+
+pool:
+  name: PC-EP-PFB-IaC-POOL
+
+stages:
+
+# ----------- PLAN STAGE -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.5.7'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'PC-EP-PFB-IaC-SC-PROD'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            backendConfigReconfigure: true
+
+        - powershell: |
+            Write-Host "Exporting OIDC Environment Variables"
+            $env:ARM_USE_OIDC = "true"
+
+            Write-Host "Setting Azure subscription"
+            az account set --subscription $env:ARM_SUBSCRIPTION_ID
+            az account show
+
+            Write-Host "Initializing Terraform..."
+            terraform init -upgrade
+
+            Write-Host "Importing NSG resources..."
+            terraform import -var-file="variables.tfvars" 'module.network_security_group_ae.azurerm_network_security_group.nsg[\"nsg-avd-p01-ae\"]' '/subscriptions/ee3f4544-7b5f-44f7-af75-2a4ca66cfeec/resourceGroups/rg-avd-networking-p01-ae/providers/Microsoft.Network/networkSecurityGroups/nsg-avd-p01-ae'
+
+            terraform import -var-file="variables.tfvars" 'module.network_security_group_ae.azurerm_network_security_group.nsg[\"nsg-avd-p02-ae\"]' '/subscriptions/ee3f4544-7b5f-44f7-af75-2a4ca66cfeec/resourceGroups/rg-avd-networking-p01-ae/providers/Microsoft.Network/networkSecurityGroups/nsg-avd-p02-ae'
+          displayName: 'Setup OIDC & Import NSG Resources'
+
+

@@ -1,0 +1,164 @@
+name: 'ODNZ Terraform - $(environment) - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+parameters:
+  - name: environment
+    displayName: 'Target Environment'
+    type: string
+    default: 'uat'
+    values:
+      - uat
+      - prd
+
+variables:
+  - group: nzblood                    # Change to your variable group if needed
+  - name: terraformVersion
+    value: '1.10.0'
+  - name: workingDirectory
+    value: '$(Build.SourcesDirectory)'
+
+  # Dynamic values based on selected environment
+  - name: varFile
+    ${{ if eq(parameters.environment, 'uat') }}:
+      value: 'uat.tfvars'
+    ${{ if eq(parameters.environment, 'prd') }}:
+      value: 'prd.tfvars'
+
+  - name: backendKey
+    ${{ if eq(parameters.environment, 'uat') }}:
+      value: 'odnz-uat.tfstate'
+    ${{ if eq(parameters.environment, 'prd') }}:
+      value: 'odnz-prd.tfstate'
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# =====================================================
+# PLAN STAGE
+# =====================================================
+- stage: Plan
+  displayName: 'Terraform Plan - ${{ parameters.environment }}'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform ${{ variables.terraformVersion }}'
+          inputs:
+            terraformVersion: '$(terraformVersion)'
+
+        - bash: |
+            echo "##vso[task.setvariable variable=PATH]$PATH:/opt/hostedtoolcache/terraform/$(terraformVersion)/x64"
+          displayName: 'Add Terraform to PATH'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'Datacomcloudtf1'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(backendKey)'
+            backendConfigReconfigure: true
+            workingDirectory: '$(workingDirectory)'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            environmentServiceNameAzureRM: 'Datacomcloudtf1'
+            workingDirectory: '$(workingDirectory)'
+            commandOptions: >
+              -var-file="$(workingDirectory)/$(varFile)"
+              -out="$(Build.ArtifactStagingDirectory)/tfplan"
+
+        - task: CopyFiles@2
+          displayName: 'Copy Terraform files + plan'
+          inputs:
+            SourceFolder: '$(workingDirectory)'
+            Contents: |
+              **/*
+              !**/.terraform/**/*
+              !**/.git/**/*
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Terraform Plan Artifact'
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'terraform-plan'
+            publishLocation: 'Container'
+
+# =====================================================
+# MANUAL APPROVAL
+# =====================================================
+- stage: ManualApproval
+  displayName: 'Manual Approval'
+  dependsOn: Plan
+  jobs:
+    - deployment: WaitForApproval
+      displayName: 'Awaiting Manual Approval'
+      environment: approval-env          # Make sure this environment exists
+      strategy:
+        runOnce:
+          deploy:
+            steps: []
+
+# =====================================================
+# APPLY STAGE
+# =====================================================
+- stage: Apply
+  displayName: 'Terraform Apply - ${{ parameters.environment }}'
+  dependsOn: ManualApproval
+  jobs:
+    - deployment: ApplyTerraform
+      displayName: 'Apply Terraform'
+      environment: ${{ parameters.environment }}-env   # e.g. uat-env / prd-env (create these in Azure DevOps)
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '$(terraformVersion)'
+
+              - bash: |
+                  echo "##vso[task.setvariable variable=PATH]$PATH:/opt/hostedtoolcache/terraform/$(terraformVersion)/x64"
+                displayName: 'Add Terraform to PATH'
+
+              - download: current
+                artifact: terraform-plan
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Init (Apply Stage)'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  backendServiceArm: 'Datacomcloudtf1'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(backendKey)'
+                  backendConfigReconfigure: true
+                  workingDirectory: '$(Pipeline.Workspace)/terraform-plan'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  environmentServiceNameAzureRM: 'Datacomcloudtf1'
+                  workingDirectory: '$(Pipeline.Workspace)/terraform-plan'
+                  commandOptions: '-parallelism=1 -auto-approve tfplan'

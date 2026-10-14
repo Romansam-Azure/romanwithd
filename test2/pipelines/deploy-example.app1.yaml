@@ -1,0 +1,26 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  repositories:
+    - repository: vmaccelerator
+      type: git
+      name: Bicep-Landing Zone/vmaccelerator
+      ref: refs/heads/main # refs/tags/vVersion or refs/heads/<featurename>
+
+extends:
+  template: templates/terraform/terraform-deployment.yaml@vmaccelerator
+  parameters:
+    # the following line controls the pipeline environment name - it is automatically appended with the environment
+    deploymentEnvironmentName: "Sample - App1 Demo (rg-romtest-vm-dev-ae-01)"
+    # enable this if you're not using self-hosted agents and the storage account resource firewall is on
+    requireStorageAccountFirewallAction: true
+    bypassChecks: true
+    environmentObjects:
+      - environmentName: "dev"
+        variablePath: /pipelines/variables/dev.vars.yaml
+        tfblobfile: example.app1.tfstate
+        tfvarsfile: iac/environments/examples/app1/example.app1.tfvars
+        dependsOn: []

@@ -1,0 +1,10 @@
+virtual_networks:
+  vnet01:
+    name: "romtest-vnet-dev-ae-01"
+    resource_group_name: ${resource_group_name}
+    # resource_group: 
+    #   key: rg01
+    location: ${location}
+    #use_existing: true
+    address_space:
+      - "10.1.0.0/16"

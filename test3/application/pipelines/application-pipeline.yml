@@ -1,0 +1,279 @@
+trigger: none
+  # branches:
+  #   include:
+  #     - main
+  # paths:
+  #   include:
+  #     - application/*
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  resourceGroupName: 'sitecore-xp-prod-rg'
+  storageAccountName: 'terrafmstorage01'
+  storageContainerName: 'packages'
+  deploymentId: 'sitecorexp102-uat'
+  licenseFilePath: ''
+  azureSubscription: 'Datacomcloudtf1'
+  clientId: 'af6cec45-8e73-4ff1-9ca5-a2ba898f6d0b'
+  tenantId: '9b137b97-8345-4a72-a060-5e083e8364c6'
+
+steps:
+- checkout: self
+  fetchDepth: 0
+  clean: true
+  displayName: 'Checkout sitecore104 repository'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy CM'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-cm"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_cm.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy CD'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-cd"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_cd.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+# - task: AzurePowerShell@5
+#   displayName: 'Deploy CD Staging'
+#   inputs:
+#     azurePowerShellVersion: 'LatestVersion'
+#     pwsh: true
+#     azureSubscription: '$(azureSubscription)'
+#     scriptType: 'FilePath'
+#     scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+#     scriptArguments: >
+#       -ResourceGroupName "$(resourceGroupName)"
+#       -WebAppName "sitecorexp102-uat-cd"
+#       -SlotName "sitecorexp102-uat-cd-staging"
+#       -StorageAccountName "$(storageAccountName)"
+#       -StorageContainerName "$(storageContainerName)"
+#       -DeploymentId "$(deploymentId)"
+#       -LicenseFilePath "$(licenseFilePath)"
+#       -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_cd.scwdp.zip"
+#       -ClientId "$(clientId)"
+#       -TenantId "$(tenantId)"
+#     errorActionPreference: 'Stop'
+#     verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy PRC'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-prc"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_prc.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy SI'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-si"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore.IdentityServer.8.0.16.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy xC RefData'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-xc-refdata"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1referencedata.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy xC Collect'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-xc-collect"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collection.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy xC Search'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-xc-search"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collectionsearch.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy MA Ops'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-ma-ops"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomation.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy MA Rep'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-ma-rep"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomationreporting.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy Cortex Processing'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-cortex-processing"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexprocessing.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'
+
+- task: AzurePowerShell@5
+  displayName: 'Deploy Cortex Reporting'
+  inputs:
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+    azureSubscription: '$(azureSubscription)'
+    scriptType: 'FilePath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/application/deploy/deploy-sitecore.ps1'
+    scriptArguments: >
+      -ResourceGroupName "$(resourceGroupName)"
+      -WebAppName "sitecorexp102-uat-cortex-reporting"
+      -StorageAccountName "$(storageAccountName)"
+      -StorageContainerName "$(storageContainerName)"
+      -DeploymentId "$(deploymentId)"
+      -LicenseFilePath "$(licenseFilePath)"
+      -WdpBlobName "Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexreporting.scwdp.zip"
+      -ClientId "$(clientId)"
+      -TenantId "$(tenantId)"
+    errorActionPreference: 'Stop'
+    verbosePreference: 'Continue'

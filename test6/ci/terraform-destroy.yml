@@ -1,0 +1,52 @@
+trigger:
+- none
+
+variables:
+- group: avddeployvariables
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+# ✅ Step 1: Add Azure DevOps agent IP to Key Vault firewall
+- task: AzurePowerShell@5
+  name: AddAgentIPToKV
+  displayName: 'Add Agent IP to Key Vault Firewall'
+  inputs:
+    azureSubscription: 'Testconnection'
+    ScriptType: 'InlineScript'
+    Inline: |
+      $ip = (Invoke-RestMethod -Uri "http://ipinfo.io/json").ip
+      Write-Host "##vso[task.setvariable variable=agentIP]$ip"
+      Add-AzKeyVaultNetworkRule -VaultName "kv-tfstate-p01-ae" -IPAddressRange $ip
+      Start-Sleep -Seconds 30  # Let the firewall rule propagate
+    azurePowerShellVersion: 'LatestVersion'
+    pwsh: true
+
+# ✅ Step 2: Install Terraform
+- task: TerraformInstaller@1
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: '1.5.7'
+
+# ✅ Step 3: Terraform Init
+- task: TerraformTaskV4@4
+  displayName: 'Terraform Init'
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'Testconnection'
+    backendAzureRmResourceGroupName: '$(bkstrrg)'
+    backendAzureRmStorageAccountName: '$(bkstorage)'
+    backendAzureRmContainerName: '$(bkstrcontainer)'
+    backendAzureRmKey: '$(bkstrkey)'
+
+# ✅ Step 4: Terraform Destroy
+- bash: |
+    terraform destroy -var-file="variables.tfvars" -auto-approve
+  displayName: 'Terraform Destroy'
+  env:
+    ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+    ARM_CLIENT_ID:       $(arm-client-id)
+    ARM_CLIENT_SECRET:   $(arm-client-secret)
+    ARM_TENANT_ID:       $(arm-tenant-id)

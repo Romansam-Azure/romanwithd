@@ -1,0 +1,176 @@
+name: 'Terraform Apply VM - $(Date:yyMMdd)$(Rev:rr)'
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: SitecoreUAT
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+# ----------- PLAN STAGE -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        - bash: |
+            echo "##vso[task.setvariable variable=PATH]$PATH:/opt/hostedtoolcache/terraform/1.10.0/x64"
+          displayName: 'Add Terraform to PATH for CLI usage'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'Datacomcloudtf1'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            backendConfigReconfigure: true
+            workingDirectory: '$(Build.SourcesDirectory)'
+
+        - bash: |
+            echo "ARM_CLIENT_ID=$ARM_CLIENT_ID"
+            echo "ARM_SUBSCRIPTION_ID=$ARM_SUBSCRIPTION_ID"
+            echo "ARM_TENANT_ID=$ARM_TENANT_ID"
+            echo "ARM_USE_OIDC=$ARM_USE_OIDC"
+          env:
+            ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+            ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+            ARM_TENANT_ID: $(ARM_TENANT_ID)
+            ARM_USE_OIDC: true
+          displayName: 'Debug OIDC Env Variables'
+
+        # - task: AzureCLI@2
+        #   displayName: 'Terraform Import IP Groups'
+        #   inputs:
+        #     azureSubscription: 'Datacomcloudtf1'
+        #     scriptType: 'bash'
+        #     scriptLocation: 'inlineScript'
+        #     inlineScript: |
+        #       export ARM_CLIENT_ID="${ARM_CLIENT_ID}"
+        #       export ARM_SUBSCRIPTION_ID="${ARM_SUBSCRIPTION_ID}"
+        #       export ARM_TENANT_ID="${ARM_TENANT_ID}"
+        #       export ARM_USE_OIDC=true
+
+        #       cd "$(Build.SourcesDirectory)"
+        #       terraform init
+
+        #       while IFS=" " read -r resource id || [ -n "$resource" ]; do
+        #         clean_id=$(echo "$id" | tr -d '\r')
+        #         echo "Importing $resource from $clean_id"
+        #         terraform import "$resource" "$clean_id" || echo "⚠️ Failed to import $resource"
+        #       done < testipgrpup.txt
+        #   workingDirectory: '$(Build.SourcesDirectory)'
+        #   env:
+        #     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        #     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        #     ARM_TENANT_ID: $(ARM_TENANT_ID)
+        #     ARM_USE_OIDC: true
+
+        - bash: |
+            terraform state list || echo "No state found"
+          workingDirectory: '$(Build.SourcesDirectory)'
+          displayName: 'Check Terraform State'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            terraformVersion: '1.10.0'
+            environmentServiceNameAzureRM: 'Datacomcloudtf1'
+            workingDirectory: '$(Build.SourcesDirectory)'
+            commandOptions: >
+              -var-file="$(Build.SourcesDirectory)/environments/uat/terraform.tfvars"
+              -out="$(Build.ArtifactStagingDirectory)/tfplan"
+
+        - task: CopyFiles@2
+          displayName: 'Copy Infra Files'
+          inputs:
+            SourceFolder: '$(Build.SourcesDirectory)'
+            Contents: |
+              **/*
+              !**/.terraform/**/*
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          displayName: 'Publish Terraform Plan'
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'terraform-plan'
+            publishLocation: 'Container'
+
+# ----------- MANUAL APPROVAL STAGE -------------------
+- stage: ManualApproval
+  displayName: 'Manual Approval Before Apply'
+  dependsOn: Plan
+  jobs:
+    - deployment: WaitForApproval
+      displayName: 'Awaiting Manual Approval'
+      environment: approval-env
+      strategy:
+        runOnce:
+          deploy:
+            steps: []
+
+# ----------- APPLY STAGE -------------------
+- stage: DeployToTest
+  displayName: 'Terraform Apply Stage'
+  dependsOn: ManualApproval
+  jobs:
+    - deployment: ApplyToTest
+      displayName: 'Apply Terraform to Test'
+      environment: alztest
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.10.0'
+
+              - bash: |
+                  echo "##vso[task.setvariable variable=PATH]$PATH:/opt/hostedtoolcache/terraform/1.10.0/x64"
+                displayName: 'Add Terraform to PATH'
+
+              - download: current
+                artifact: terraform-plan
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Init (Apply Stage)'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  terraformVersion: '1.10.0'
+                  backendServiceArm: 'Datacomcloudtf1'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  backendConfigReconfigure: true
+                  workingDirectory: '$(Pipeline.Workspace)/terraform-plan'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  terraformVersion: '1.10.0'
+                  environmentServiceNameAzureRM: 'Datacomcloudtf1'
+                  workingDirectory: '$(Pipeline.Workspace)/terraform-plan'
+                  commandOptions: '-parallelism=1 -auto-approve tfplan'

@@ -1,0 +1,11 @@
+route_tables:
+  default_route: 
+    name: "rt-default-romtest-dev-ae-01"
+    bgp_route_propagation_enabled: false
+    routes:
+      r0:
+        address_prefix: "0.0.0.0/0"   # route all traffic
+        name: "default-route"
+        next_hop_type: "Internet"
+
+

@@ -1,0 +1,29 @@
+trigger:
+- none
+
+variables:
+- group: Foundation01
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: TerraformTaskV4@4
+  displayName: init
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'Datacomcloudtf'
+    backendAzureRmResourceGroupName: '$(bkstrrg)'
+    backendAzureRmStorageAccountName: '$(bkstorage)'
+    backendAzureRmContainerName: '$(bkstrcontainer)'
+    backendAzureRmKey: '$(bkstrkey)'
+
+- bash: |
+    terraform force-unlock -force 64da76c3-e062-c646-f667-f0176e2a8952
+  displayName: Terraform unlock
+  env:
+    ARM_SUBSCRIPTION_ID: $(arm-subscription-id)
+    ARM_CLIENT_ID:       $(arm-client-id)
+    ARM_CLIENT_SECRET:   $(arm-client-secret)
+    ARM_TENANT_ID:       $(arm-tenant-id)

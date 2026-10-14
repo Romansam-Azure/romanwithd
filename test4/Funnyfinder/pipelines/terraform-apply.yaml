@@ -1,0 +1,129 @@
+name: Terraform-Apply-VM-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+
+pr:
+  - '*'
+
+variables:
+  - group: funnyfindervg
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# ------------------- PLAN -------------------
+- stage: Plan
+  displayName: 'Terraform Plan Stage'
+  jobs:
+    - job: TerraformPlan
+      displayName: 'Run Terraform Plan'
+      steps:
+        - task: TerraformInstaller@1
+          displayName: 'Install Terraform'
+          inputs:
+            terraformVersion: '1.10.0'
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Init (Remote Backend)'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            terraformVersion: '1.10.0'
+            backendServiceArm: 'FF-IaC-PRD'
+            backendAzureRmResourceGroupName: '$(bkstrrg)'
+            backendAzureRmStorageAccountName: '$(bkstorage)'
+            backendAzureRmContainerName: '$(bkstrcontainer)'
+            backendAzureRmKey: '$(bkstrkey)'
+            workingDirectory: 'Funnyfinder'
+            backendConfigReconfigure: true
+      
+        - script: |
+            terraform state list
+          displayName: 'List Terraform State Resources'
+          workingDirectory: 'Funnyfinder'      
+
+        - task: TerraformTaskV4@4
+          displayName: 'Terraform Plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            terraformVersion: '1.10.0'
+            environmentServiceNameAzureRM: 'FF-IaC-PRD'
+            workingDirectory: 'Funnyfinder'
+            commandOptions: '-out=tfplan'
+
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish Terraform Files'
+          inputs:
+            targetPath: '$(System.DefaultWorkingDirectory)/Funnyfinder'
+            artifact: 'management-sub'
+
+# ------------------- APPROVAL -------------------
+- stage: ManualApproval
+  displayName: 'Manual Approval Before Apply'
+  dependsOn: Plan
+  jobs:
+    - deployment: WaitForApproval
+      displayName: 'Awaiting Manual Approval'
+      environment: Managemnet-env
+      strategy:
+        runOnce:
+          deploy:
+            steps: []
+
+# ------------------- APPLY -------------------
+- stage: DeployToTest
+  displayName: 'Terraform Apply Stage'
+  dependsOn: ManualApproval
+  jobs:
+    - deployment: ApplyToTest
+      displayName: 'Apply Terraform to Test'
+      environment: alztest
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@1
+                displayName: 'Install Terraform'
+                inputs:
+                  terraformVersion: '1.10.0'
+
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download Terraform Files'
+                inputs:
+                  artifact: 'management-sub'
+                  path: '$(Pipeline.Workspace)/management-sub'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Init (Apply Stage)'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'init'
+                  terraformVersion: '1.10.0'
+                  backendServiceArm: 'FF-IaC-PRD'
+                  backendAzureRmResourceGroupName: '$(bkstrrg)'
+                  backendAzureRmStorageAccountName: '$(bkstorage)'
+                  backendAzureRmContainerName: '$(bkstrcontainer)'
+                  backendAzureRmKey: '$(bkstrkey)'
+                  workingDirectory: '$(Pipeline.Workspace)/management-sub'
+                  backendConfigReconfigure: true
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  terraformVersion: '1.10.0'
+                  environmentServiceNameAzureRM: 'FF-IaC-PRD'
+                  workingDirectory: '$(Pipeline.Workspace)/management-sub'
+                  commandOptions: '-auto-approve tfplan'
+
+              - task: DeleteFiles@1
+                displayName: 'Cleanup Downloaded Terraform Files'
+                condition: always()  # Runs even if previous steps fail
+                inputs:
+                  SourceFolder: '$(Pipeline.Workspace)/management-sub'
+                  Contents: '**'  # Delete all files and subfolders recursively
+                  RemoveSourceFolder: true  # Delete the folder itself

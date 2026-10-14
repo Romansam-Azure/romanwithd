@@ -1,0 +1,10 @@
+variable "prefix"                         { type = string }
+variable "location"                       { type = string }
+variable "resource_group_name"            { type = string }
+variable "address_space"                  { type = list(string) }
+variable "private_endpoint_subnet_name"   { type = string }
+variable "private_endpoint_subnet_prefix" { type = string }
+variable "app_service_subnet_name"        { type = string }
+variable "app_service_subnet_prefix"      { type = string }
+variable "private_dns_resource_group_name"{ type = string }
+variable "tags"                           { type = map(string) }

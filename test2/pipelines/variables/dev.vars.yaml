@@ -1,0 +1,15 @@
+variables:
+  # this service connection is created in DevOps and used to authenticate to Azure
+  azureSubscription: "Datacomcloudtf"
+  # this is the location of the tfState file (AzureRM backend) in this environment
+  tfsubscription: "dca9be48-88b1-43e3-adfb-4a8d1ac1220e"
+  tf-state-resource-group: "resourceforroma"
+  tf-state-blob-account: "terrafmstorage01"
+  # if there is a single solution in the template (only one pipeline, the tf-var-file can be specified here)
+  # tf-var-file: "iac/environments/example.windows.single.vm.tfvars"
+  extraFirewallUnlocks: >-
+    [{"public":"true",
+      "subscriptionID" : "dca9be48-88b1-43e3-adfb-4a8d1ac1220e",
+      "resourceGroupName": "rg-keyvault-pom-aue-001",
+      "name": "kv-hub-rom-aue-001",
+      "type" : "key_vault"}]

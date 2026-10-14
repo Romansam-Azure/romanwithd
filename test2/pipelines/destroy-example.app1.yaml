@@ -1,0 +1,27 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  repositories:
+    - repository: pipeline-templates
+      type: git
+      name: terraform-azure-library/pipeline-templates
+      ref: refs/tags/v3.2.0 # refs/tags/vVersion or refs/heads/<featurename>
+
+extends:
+  template: templates/terraform/terraform-deployment.yaml@pipeline-templates
+  parameters:
+    # the following line controls the pipeline environment name - it is automatically appended with the environment
+    deploymentEnvironmentName: "Sample - App2 VM Demo (rg-stutest-vm-dev-ae-01)"
+    # enable this if you're not using self-hosted agents and the storage account resource firewall is on
+    requireStorageAccountFirewallAction: true
+    destroyResources: true
+    bypassChecks: true
+    environmentObjects:
+      - environmentName: "dev"
+        variablePath: /pipelines/variables/dev.vars.yaml
+        tfblobfile: example.app1.tfstate
+        tfvarsfile: iac/environments/examples/app1/example.app1.tfvars
+        dependsOn: []

@@ -1,0 +1,26 @@
+network_security_groups:
+  nsg01:
+    name: "nsg-romtest-vm-dev-ae-01"
+    security_rules:
+      http_inbound:
+        access: Allow
+        name: httpInbound
+        direction: Inbound
+        priority: 150
+        protocol: Tcp
+        source_address_prefix: "*"
+        source_port_range: "*"
+        destination_address_prefix: "*"
+        destination_port_ranges:
+          - 80
+          - 443
+      deny_all_outbound:
+        access: Deny
+        direction: Outbound
+        name: deny_all_outbound
+        priority: 4096
+        protocol: Tcp
+        destination_address_prefix: "*"
+        destination_port_range: "*"
+        source_address_prefix: "*"
+        source_port_range: "*"

@@ -1,0 +1,20 @@
+{
+  "msdeploy_package_urls": {
+    "si": "<SAS-URL-to-Sitecore.IdentityServer.8.0.16.scwdp.zip>",
+    "cm": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_cm.scwdp.zip>",
+    "cd": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_cd.scwdp.zip>",
+    "prc": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_prc.scwdp.zip>",
+    "ref_data": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1referencedata.scwdp.zip>",
+    "collect": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collection.scwdp.zip>",
+    "search": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1collectionsearchsolr.scwdp.zip>",
+    "ma_ops": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomation.scwdp.zip>",
+    "ma_rep": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1marketingautomationreporting.scwdp.zip>",
+    "cortex_processing": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexprocessing.scwdp.zip>",
+    "cortex_reporting": "<SAS-URL-to-Sitecore 10.4.0 rev. 010422 (Cloud)_xp1cortexreporting.scwdp.zip>",
+    "exm_cm": "<SAS-URL-to-Sitecore.Patch.EXM 10.4.0 rev. 010422 (Cloud)_cm.scwdp.zip>",
+    "sxa_cm": "<SAS-URL-to-Sitecore Experience Accelerator 10.4.0 rev. 08675.scwdp.zip>",
+    "sxa_cd": "<SAS-URL-to-Sitecore Experience Accelerator 10.4.0 rev. 08675 CD.scwdp.zip>",
+    "powershell": "<SAS-URL-to-Sitecore.PowerShell.Extensions-7.0-IAR.scwdp.zip>"
+  },
+  "deploy_exm_dds": false
+}

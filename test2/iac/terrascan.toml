@@ -1,0 +1,24 @@
+# terrascan configuration file
+# https://runterrascan.io/docs/usage/config_options/
+#
+# https://github.com/tenable/terrascan/blob/master/docs/policies/azure.md
+
+# notifications configuration
+[notifications]
+
+# scan and skip rules configuration
+[rules]
+    # scan rules (list of rules to scan)
+    # adding rules here will override rules in the policy path
+    scan-rules = []
+
+    # skip rules (list of rules to skip)
+    skip-rules = [
+        # Ensure resource lock enabled for Azure Resource Group
+        # https://www.tenable.com/policies/cookies/AC_AZURE_0389
+        "AC_AZURE_0389",
+
+        # Ensure every subnet block is configured with a Network Security Group in Azure Virtual Network
+        # https://www.tenable.com/policies/cookies/AC_AZURE_0356
+        "AC_AZURE_0356",
+    ]
